@@ -1,0 +1,17 @@
+{
+  "name": "unicodex",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-only, dependency-free LaTeX and mixed-text to Unicode converter.",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "start": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check app.js && node --check converter.js && npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
