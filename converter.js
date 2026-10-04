@@ -47,6 +47,18 @@ function groupIfNeeded(s) {
   const atom=/^[-−]?(?:\d+(?:\.\d+)?|\p{L}\p{M}*[\u2070-\u209F\u00B2\u00B3\u00B9]*|\p{N})$/u.test(s);
   return atom||enclosed?s:`(${s})`;
 }
+function fractionNumerator(s, lean) {
+  if (!lean) return groupIfNeeded(s);
+  // A product in the numerator can be written inline. Sums, relations and
+  // nested divisions still require grouping; denominator grouping is unchanged.
+  let depth = 0;
+  for (const c of s) {
+    if ('([{'.includes(c)) depth++;
+    else if (')]}'.includes(c)) depth--;
+    else if (depth === 0 && /[+\-−/=<>≤≥≠,;:]/u.test(c)) return groupIfNeeded(s);
+  }
+  return depth === 0 && /^[\p{L}\p{N}\p{M}\s()[\]{}⋅×⁺⁻⁼⁽⁾]+$/u.test(s) ? s : groupIfNeeded(s);
+}
 const codepointWidth = (s) => Array.from(s).filter(c => !/\p{M}/u.test(c)).length;
 const alignContinuation = (text, column) => text.replace(/\n/g, '\n'+' '.repeat(column));
 const VECTOR_ACCENTS = new Set(['vec','overrightarrow','overleftarrow','overleftrightarrow']);
@@ -94,7 +106,8 @@ function script(text, kind, ctx, offset) {
   // In a math script, ordinary spacing is TeX layout rather than part of its value.
   const chars = Array.from(value.replace(/[ \t]/g, ''));
   if (chars.length && chars.every(c => table[c])) return chars.map(c=>table[c]).join('');
-  warning(ctx,'SCRIPT_FALLBACK',`Some ${kind === '^' ? 'superscript' : 'subscript'} characters have no Unicode counterpart; explicit parentheses preserve the value.`,offset,true);
+  const missing = [...new Set(chars.filter(c => !table[c]))].join(', ');
+  warning(ctx,'SCRIPT_FALLBACK',`No plain Unicode ${kind === '^' ? 'superscript' : 'subscript'} is available for ${missing}; ${kind}(${value}) preserves the index or exponent.`,offset,true);
   return `${kind}(${value})`;
 }
 
@@ -159,7 +172,11 @@ class Parser {
         append(script(arg.text,c,this.ctx,this.offset+start));
         continue;
       }
-      append(this.atom(this.math));
+      const command = c === '\\' ? /^\\([A-Za-z]+)/.exec(this.s.slice(this.i))?.[1] : null;
+      const value = this.atom(this.math);
+      const named = FUNCTIONS.has(command) || (this.ctx.lean && ['frac','dfrac','tfrac','cfrac'].includes(command) && FUNCTIONS.has(/^[A-Za-z]+/.exec(value)?.[0]));
+      if (this.math && named && /[\p{L}\p{N}\p{M})\]]$/u.test(parts.at(-1) || '')) append(' ');
+      append(value);
       if (this.i <= start) { append(this.s[this.i++]); this.warn('RECOVERY','An unrecognized input character was retained.',start); }
     }
     return parts.join('');
@@ -196,7 +213,22 @@ class Parser {
     // Keep source spacing readable in mixed paragraphs. Argument readers consume
     // separator spaces themselves; symbol commands must not glue prose words.
     if (SYMBOLS[name]) return SYMBOLS[name];
-    if (FUNCTIONS.has(name)) return name + (/[\p{L}\p{N}\\]/u.test(this.s[this.i]||'')?' ':'');
+    if (FUNCTIONS.has(name)) {
+      let label = name;
+      // TeX permits both \\sin^2\\theta and \\sin^{2}{\\theta}. Handle scripts
+      // before separating the function from its argument, without rewriting it.
+      for (;;) {
+        const before = this.i;
+        this.whitespace();
+        const kind = this.s[this.i];
+        if (kind !== '^' && kind !== '_') { this.i = before; break; }
+        this.i++;
+        const a = this.argument(true);
+        if (!a?.valid) return label + this.s.slice(before, this.i);
+        label += script(a.text, kind, this.ctx, this.offset + before);
+      }
+      return label + (/[\p{L}\p{N}\\{]/u.test(this.s[this.i] || '') ? ' ' : '');
+    }
     if (LAYOUT_COMMANDS.has(name)) return '';
     if (name==='quad') return '\u2003';
     if (name==='qquad') return '\u2003\u2003';
@@ -218,7 +250,7 @@ class Parser {
       const common=VULGAR[n+'/'+d];
       if(common) return common;
       this.warn('FRACTION_LINEAR','A stacked fraction was represented as division with explicit grouping.',start,true);
-      return groupIfNeeded(n)+'/'+groupIfNeeded(d);
+      return fractionNumerator(n,this.ctx.lean)+'/'+groupIfNeeded(d);
     }
     if(name==='sqrt') {
       const index=this.optional(), a=this.argument(true);
@@ -464,7 +496,7 @@ export function convertLatex(input, options={}) {
   const requestedLength=Number(options.maxInputLength), requestedDepth=Number(options.maxDepth);
   const maxInputLength=Number.isFinite(requestedLength)?Math.min(200000,Math.max(1,Math.floor(requestedLength))):50000;
   const maxDepth=Number.isFinite(requestedDepth)?Math.min(128,Math.max(1,Math.floor(requestedDepth))):48;
-  const ctx={maxDepth,matrixStyle:options.matrixStyle==='compact'?'compact':'multiline',vectorStyle:options.vectorStyle==='label'?'label':'arrow',warnings:[],additionalWarnings:0,stats:{inputCharacters:Array.from(input).length,outputCharacters:0,mathSegments:0,unsupportedCommands:0,lossyConversions:0}};
+  const ctx={maxDepth,lean:options.lean===true,matrixStyle:options.matrixStyle==='compact'?'compact':'multiline',vectorStyle:options.vectorStyle==='label'?'label':'arrow',warnings:[],additionalWarnings:0,stats:{inputCharacters:Array.from(input).length,outputCharacters:0,mathSegments:0,unsupportedCommands:0,lossyConversions:0}};
   if(input.length>maxInputLength){warning(ctx,'INPUT_TOO_LONG',`The input exceeds the ${maxInputLength}-character conversion limit. It was returned unchanged.`,0);ctx.stats.outputCharacters=ctx.stats.inputCharacters;return {text:input,warnings:ctx.warnings,stats:ctx.stats};}
   let text;
   if(mode==='math'){text=cleanMath(mixed(input,ctx,0,true));if(!ctx.stats.mathSegments&&input.trim())ctx.stats.mathSegments=1;}

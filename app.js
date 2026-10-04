@@ -1,4 +1,5 @@
-import { convertLatex } from './converter.js?v=1.2';
+import { convertLatex } from './converter.js?v=1.3';
+import { setupReporting } from './reporting.js?v=1.3';
 
 const el = (id) => document.getElementById(id);
 const source = el('source');
@@ -30,7 +31,7 @@ function convert() {
   clearTimeout(timer);
   try {
     const portable=notation.value==='portable';
-    result = convertLatex(source.value, { mode: mode.value, maxInputLength: 100000, matrixStyle: notation.value==='unicode'?'multiline':'compact', vectorStyle: portable?'label':'arrow' });
+    result = convertLatex(source.value, { mode: mode.value, lean: el('lean')?.checked === true, maxInputLength: 100000, matrixStyle: notation.value==='unicode'?'multiline':'compact', vectorStyle: portable?'label':'arrow' });
     output.value = result.text;
     el('input-count').textContent = `${Array.from(source.value).length.toLocaleString()} characters`;
     el('output-count').textContent = `${Array.from(result.text).length.toLocaleString()} characters`;
@@ -40,6 +41,19 @@ function convert() {
     for (const warning of result.warnings) {
       const item = document.createElement('li');
       item.textContent = warning.message;
+      if (Number.isInteger(warning.offset)) {
+        const locate = document.createElement('button');
+        locate.type = 'button';
+        locate.className = 'note-location';
+        locate.textContent = 'Show in input';
+        locate.addEventListener('click', () => {
+          const start = Math.min(source.value.length, warning.offset);
+          const token = /^(?:[_^](?:\{[^}]*\}|\\[A-Za-z]+|.)|\\[A-Za-z]+)/.exec(source.value.slice(start));
+          source.focus();
+          source.setSelectionRange(start, Math.min(source.value.length, start + (token?.[0].length || 1)));
+        });
+        item.append(locate);
+      }
       list.append(item);
     }
     el('warnings-panel').hidden = !result.warnings.length;
@@ -63,6 +77,7 @@ source.addEventListener('input', () => {
 });
 mode.addEventListener('change', convert);
 notation.addEventListener('change', convert);
+el('lean')?.addEventListener('change', convert);
 el('convert').addEventListener('click', convert);
 el('example').addEventListener('change', (event) => {
   if (!samples[event.target.value]) return;
@@ -97,3 +112,9 @@ copy.addEventListener('click', async () => {
 });
 source.value = samples.paragraph;
 convert();
+setupReporting({ getSnapshot: () => {
+  if (!source.value.trim()) return null;
+  const successful = convert();
+  return { source: source.value, output: result.text, warnings: successful ? result.warnings : [{ code: 'CONVERSION_FAILED', message: el('status').textContent }],
+    version: '1.3.0', options: { mode: mode.value, notation: notation.value, lean: el('lean')?.checked === true } };
+} });

@@ -44,7 +44,13 @@ const { text, warnings, stats } = convertLatex('Energy: $E=mc^2$.');
 // text: 'Energy: E=mc².'
 ```
 
-Options: `mode` (`auto`, `math`, `text`), `matrixStyle` (`multiline`, `compact`), `vectorStyle` (`arrow`, `label`), `maxInputLength`, `maxDepth`. The engine API retains `multiline` as its default; pass `matrixStyle: 'compact'` for the app's default inline layout, including transposed column vectors. Warnings expose a code, message and optional source offset. The engine has no DOM dependency and can run in Node.js or the browser.
+Options: `mode` (`auto`, `math`, `text`), `matrixStyle` (`multiline`, `compact`), `vectorStyle` (`arrow`, `label`), `lean`, `maxInputLength`, `maxDepth`. The app enables Lean by default; it removes redundant numerator parentheses while retaining denominators, sums and nested divisions. The API defaults to `lean: false` for compatibility. Braced and unbraced arguments are supported, and named functions are separated from adjacent factors and their arguments. The engine API retains `multiline` as its default; pass `matrixStyle: 'compact'` for the app's default inline layout, including transposed column vectors. Warnings identify unavailable characters, expose a source offset, and can be located in the input. The engine has no DOM dependency and can run in Node.js or the browser.
+
+## Reporting
+
+The hosted ProjectHub app has **Report a problem** beside Copy. A dialog captures the current input/output, options, converter version and warnings; comments and expected results are optional. Nothing is sent until Send report is clicked. Reports are stored privately, and only report identifiers are saved in this browser for status tracking. The maintenance agent reviews the queue on its existing three-hour schedule. Receipt/status responses never disclose the submitted formula or comment. A failed submission remains visible for retry and is never shown as received.
+
+The private persistence backend belongs to ProjectHub (`/api/unicodex/reports`); a standalone static host can convert offline but needs that backend to accept reports. No backend credentials are included in this repository or client bundle.
 
 ## ProjectHub integration
 

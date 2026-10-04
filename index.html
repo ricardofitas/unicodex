@@ -7,8 +7,8 @@
   <meta name="theme-color" content="#10243b">
   <title>Unicodex · LaTeX to Unicode</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=1.2">
-  <script type="module" src="./app.js?v=1.2"></script>
+  <link rel="stylesheet" href="./styles.css?v=1.3">
+  <script type="module" src="./app.js?v=1.3"></script>
 </head>
 <body>
   <a class="skip" href="#source">Skip to editor</a>
@@ -19,13 +19,14 @@
     </nav>
     <header>
       <div><p class="eyebrow">Text tools / 01</p><h1>Unicodex<span>LaTeX to Unicode</span></h1></div>
-      <p class="privacy">Free · no API key<br><span>Your text stays in this browser.</span></p>
+      <p class="privacy">Free · no API key<br><span>Conversion stays in your browser.<br>Reports are sent only when you submit.</span></p>
     </header>
     <main>
       <div class="toolbar">
         <div class="control"><label for="mode">Input mode</label><select id="mode"><option value="auto">Automatic · text + formulas</option><option value="math">Formula only</option><option value="text">Text · explicit math delimiters</option></select></div>
         <div class="control"><label for="example">Try an example</label><select id="example"><option value="">Choose an example…</option><option value="paragraph">Physics paragraph</option><option value="matrix">Matrices & vectors</option><option value="calculus">Integrals, sums & products</option><option value="alphabet">Mathematical alphabets</option><option value="fractions">Nested fractions & roots</option><option value="aligned">Aligned equations</option></select></div>
         <div class="control"><label for="notation">Output notation</label><select id="notation"><option value="compact">Inline · matrices & vectors</option><option value="unicode">Unicode · multiline matrices</option><option value="portable">Compatible · compact matrices</option></select></div>
+        <label class="lean-control"><input id="lean" type="checkbox" checked> Lean output</label>
         <button id="clear" class="secondary" type="button">Clear</button>
       </div>
       <div class="editors">
@@ -39,18 +40,31 @@
           <div class="editor-heading"><h2 id="result-heading"><span class="step">02</span>Unicode output</h2><span id="output-count" class="meta">0 characters</span></div>
           <label for="output" class="sr-only">Unicode output</label>
           <textarea id="output" readonly spellcheck="false" wrap="off" placeholder="Your copyable Unicode text appears here."></textarea>
-          <div class="editor-footer"><p>Plain text, ready to paste. If symbols appear as squares after pasting, choose Compatible.</p><button id="copy" type="button" disabled>Copy Unicode</button></div>
+          <div class="editor-footer"><p>Plain text, ready to paste. If symbols appear as squares after pasting, choose Compatible.</p><div class="result-actions"><button id="report" class="secondary" type="button">Report a problem</button><button id="copy" type="button" disabled>Copy Unicode</button></div></div>
         </section>
       </div>
       <div class="status-row"><p id="status" role="status" aria-live="polite">Ready.</p><span class="meta">Converts as you type · up to 100,000 characters</span></div>
       <section id="warnings-panel" class="warnings" hidden aria-labelledby="warnings-title"><h2 id="warnings-title">Review conversion notes</h2><ul id="warnings"></ul></section>
+      <section id="report-receipts" class="report-receipts" hidden aria-label="Your reports"><h2>Your reports</h2><ul id="receipt-list"></ul><button id="refresh-reports" class="secondary" type="button">Refresh status</button><p id="receipt-status" role="status"></p></section>
+      <dialog id="report-dialog" aria-labelledby="report-title" aria-describedby="report-help">
+        <form id="report-form">
+          <div class="dialog-heading"><h2 id="report-title">Report a conversion problem</h2><button id="report-close" type="button" class="secondary">Close</button></div>
+          <p id="report-help">Send this input, output and conversion settings privately for review. A comment is optional. You can close this window without sending anything.</p>
+          <label for="report-comment">What looks wrong? <span class="meta">Optional</span></label>
+          <textarea id="report-comment" maxlength="4000" placeholder="For example: spacing, a missing symbol, or an incorrect fraction…"></textarea>
+          <label for="report-expected">Expected result <span class="meta">Optional</span></label>
+          <textarea id="report-expected" maxlength="20000" placeholder="Paste the result you expected, if you have it."></textarea>
+          <details><summary>Review what will be sent</summary><label for="report-source">Input</label><textarea id="report-source" readonly></textarea><label for="report-output">Output</label><textarea id="report-output" readonly></textarea></details>
+          <div class="report-actions"><p id="report-status" role="status" aria-live="polite"></p><button id="report-submit" type="submit">Send report</button></div>
+        </form>
+      </dialog>
       <details class="support"><summary>Supported notation & Unicode limits</summary><div class="support-grid">
         <div><h3>What you can convert</h3><p>Greek letters, mathematical symbols and arrows, fractions, roots, superscripts and subscripts, vectors and accents, mathematical alphabets, sums, products, integrals, matrices, cases and aligned equations.</p><p>Paragraphs, accents and line breaks are retained. Markdown code and unknown commands are kept visible.</p></div>
         <div><h3>What plain Unicode can represent</h3><p>Unicode is text. Complex fractions use parentheses and a slash. Inline matrices use [a, b; c, d]: commas separate columns and semicolons separate rows. Column vectors use (x, y)ᵀ; row vectors use (x, y). Multiline matrices are also available. Compatible notation uses vec(v) for destinations without mathematical fonts. Arrows over several letters use vec(AB), since Unicode cannot draw one arrow across a whole expression. Indices without a Unicode glyph keep an explicit _(…) or ^(…) form.</p><p>Custom macros, packages and arbitrary TeX programs are not executed. If a dollar sign means currency, keep it escaped as \$ or use Text mode.</p></div>
       </div></details>
       <noscript><p class="warnings">Enable JavaScript to use the converter. It runs locally in your browser.</p></noscript>
     </main>
-    <footer><span>Unicodex · Ricardo Fitas</span><span>Deterministic conversion · v1.2</span></footer>
+    <footer><span>Unicodex · Ricardo Fitas</span><span>Deterministic conversion · v1.3</span></footer>
   </div>
 </body>
 </html>
