@@ -202,6 +202,27 @@ test('all matrix delimiters have a font-independent compact alternative',()=>{
   }
 });
 
+test('compact column vectors use a transposed row while row vectors retain their orientation',()=>{
+  const brackets={matrix:['[',']'],smallmatrix:['[',']'],array:['[',']'],bmatrix:['[',']'],pmatrix:['(',')'],Bmatrix:['{','}']};
+  for(const [name,[left,right]] of Object.entries(brackets)){
+    const env=body=>`\\begin{${name}}${name==='array'?'{c}':''}${body}\\end{${name}}`;
+    assert.equal(convert(env(String.raw`x\\y\\z`),{matrixStyle:'compact'}),`${left}x, y, z${right}ᵀ`,name);
+    assert.equal(convert(env('x&y&z'),{matrixStyle:'compact'}),`${left}x, y, z${right}`,name);
+    assert.equal(convert(env('x'),{matrixStyle:'compact'}),`${left}x${right}`,name);
+  }
+  assert.equal(convert(String.raw`\begin{bmatrix}x&y\end{bmatrix}^T`,{matrixStyle:'compact'}),'[x, y]ᵀ');
+  assert.equal(convert(String.raw`\begin{vmatrix}x\\y\end{vmatrix}`,{matrixStyle:'compact'}),'|x; y|');
+  assert.equal(convert(String.raw`\begin{Vmatrix}x\\y\end{Vmatrix}`,{matrixStyle:'compact'}),'||x; y||');
+});
+
+test('compact matrices retain inline matrix and column-vector cells',()=>{
+  const input=String.raw`\begin{bmatrix}\begin{bmatrix}a&b\\c&d\end{bmatrix}&\begin{pmatrix}x\\y\end{pmatrix}\\0&1\end{bmatrix}`;
+  const result=convertLatex(input,{matrixStyle:'compact'});
+  assert.equal(result.text,'[[a, b; c, d], (x, y)ᵀ; 0, 1]');
+  assert.equal(result.warnings.length,0);
+  assert.equal(convert(result.text),result.text);
+});
+
 test('vector arrows attach to the base before indices and support styled or Greek bases',()=>{
   assert.equal(convert(String.raw`$\vec{v_i}+\vec{v}_i+\vec{\mathbf{v}}+\vec{\alpha}$`),'v⃗ᵢ+v⃗ᵢ+𝐯⃗+α⃗');
   assert.equal(convert(String.raw`$\overleftarrow{v}+\overleftrightarrow{v}$`),'v⃖+v⃡');
@@ -217,7 +238,7 @@ test('the reported matrices and vectors example retains prose and remains stable
   const text=convert(input);
   assert.equal(text,'Let 𝐀=⎡ 1  2 ⎤\n      ⎣ 3  4 ⎦ and v⃗=⎛ x ⎞\n                     ⎝ y ⎠. Then 𝐀v⃗=b⃗.');
   assert.equal(convert(text),text);
-  assert.equal(convert(input,{matrixStyle:'compact',vectorStyle:'label'}),'Let 𝐀=[1, 2; 3, 4] and vec(v)=(x; y). Then 𝐀vec(v)=vec(b).');
+  assert.equal(convert(input,{matrixStyle:'compact',vectorStyle:'label'}),'Let 𝐀=[1, 2; 3, 4] and vec(v)=(x, y)ᵀ. Then 𝐀vec(v)=vec(b).');
 });
 
 test('binomial coefficients, modulo and annotations have honest linear fallbacks',()=>{

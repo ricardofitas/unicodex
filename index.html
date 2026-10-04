@@ -7,8 +7,8 @@
   <meta name="theme-color" content="#10243b">
   <title>Unicodex · LaTeX to Unicode</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=1.1">
-  <script type="module" src="./app.js?v=1.1"></script>
+  <link rel="stylesheet" href="./styles.css?v=1.2">
+  <script type="module" src="./app.js?v=1.2"></script>
 </head>
 <body>
   <a class="skip" href="#source">Skip to editor</a>
@@ -25,7 +25,7 @@
       <div class="toolbar">
         <div class="control"><label for="mode">Input mode</label><select id="mode"><option value="auto">Automatic · text + formulas</option><option value="math">Formula only</option><option value="text">Text · explicit math delimiters</option></select></div>
         <div class="control"><label for="example">Try an example</label><select id="example"><option value="">Choose an example…</option><option value="paragraph">Physics paragraph</option><option value="matrix">Matrices & vectors</option><option value="calculus">Integrals, sums & products</option><option value="alphabet">Mathematical alphabets</option><option value="fractions">Nested fractions & roots</option><option value="aligned">Aligned equations</option></select></div>
-        <div class="control"><label for="notation">Output notation</label><select id="notation"><option value="unicode">Unicode · multiline matrices</option><option value="portable">Compatible · compact matrices</option></select></div>
+        <div class="control"><label for="notation">Output notation</label><select id="notation"><option value="compact">Inline · matrices & vectors</option><option value="unicode">Unicode · multiline matrices</option><option value="portable">Compatible · compact matrices</option></select></div>
         <button id="clear" class="secondary" type="button">Clear</button>
       </div>
       <div class="editors">
@@ -46,11 +46,11 @@
       <section id="warnings-panel" class="warnings" hidden aria-labelledby="warnings-title"><h2 id="warnings-title">Review conversion notes</h2><ul id="warnings"></ul></section>
       <details class="support"><summary>Supported notation & Unicode limits</summary><div class="support-grid">
         <div><h3>What you can convert</h3><p>Greek letters, mathematical symbols and arrows, fractions, roots, superscripts and subscripts, vectors and accents, mathematical alphabets, sums, products, integrals, matrices, cases and aligned equations.</p><p>Paragraphs, accents and line breaks are retained. Markdown code and unknown commands are kept visible.</p></div>
-        <div><h3>What plain Unicode can represent</h3><p>Unicode is text. Complex fractions use parentheses and a slash; matrices use multiple lines. Compatible notation uses [a, b; c, d] and vec(v) for destinations without mathematical fonts. Arrows over several letters use vec(AB), since Unicode cannot draw one arrow across a whole expression. Indices without a Unicode glyph keep an explicit _(…) or ^(…) form.</p><p>Custom macros, packages and arbitrary TeX programs are not executed. If a dollar sign means currency, keep it escaped as \$ or use Text mode.</p></div>
+        <div><h3>What plain Unicode can represent</h3><p>Unicode is text. Complex fractions use parentheses and a slash. Inline matrices use [a, b; c, d]: commas separate columns and semicolons separate rows. Column vectors use (x, y)ᵀ; row vectors use (x, y). Multiline matrices are also available. Compatible notation uses vec(v) for destinations without mathematical fonts. Arrows over several letters use vec(AB), since Unicode cannot draw one arrow across a whole expression. Indices without a Unicode glyph keep an explicit _(…) or ^(…) form.</p><p>Custom macros, packages and arbitrary TeX programs are not executed. If a dollar sign means currency, keep it escaped as \$ or use Text mode.</p></div>
       </div></details>
       <noscript><p class="warnings">Enable JavaScript to use the converter. It runs locally in your browser.</p></noscript>
     </main>
-    <footer><span>Unicodex · Ricardo Fitas</span><span>Deterministic conversion · v1.1</span></footer>
+    <footer><span>Unicodex · Ricardo Fitas</span><span>Deterministic conversion · v1.2</span></footer>
   </div>
 </body>
 </html>

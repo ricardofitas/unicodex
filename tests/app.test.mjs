@@ -20,7 +20,7 @@ async function harness({ clipboard = 'success', fallback = true } = {}) {
   const ids = ['source','output','mode','notation','copy','input-count','output-count','status','warnings','warnings-panel','convert','example','clear'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element(id)]));
   elements.mode.value = 'auto';
-  elements.notation.value = 'unicode';
+  elements.notation.value = 'compact';
   const writes = [];
   let pending;
   const saved = Object.fromEntries(['document','navigator','setTimeout','clearTimeout'].map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
@@ -40,7 +40,7 @@ test('copy writes exactly the displayed Unicode paragraph', async () => {
 \[\begin{bmatrix}1&2\\3&4\end{bmatrix}\]`;
     h.elements.source.value = input;
     await h.elements.convert.dispatch('click');
-    assert.equal(h.elements.output.value, convertLatex(input).text);
+    assert.equal(h.elements.output.value, convertLatex(input, { matrixStyle: 'compact' }).text);
     await h.elements.copy.dispatch('click');
     assert.deepEqual(h.writes, [h.elements.output.value]);
     assert.match(h.elements.status.textContent, /Copied/);
@@ -121,18 +121,23 @@ test('switching output notation updates and copies the matrices and vectors exam
   try{
     h.elements.example.value='matrix';
     await h.elements.example.dispatch('change');
-    const unicode=h.elements.output.value;
-    assert.ok(unicode.includes('v⃗')&&unicode.includes('⎡'));
+    const inline=h.elements.output.value;
+    assert.equal(inline,'Let 𝐀=[1, 2; 3, 4] and v⃗=(x, y)ᵀ. Then 𝐀v⃗=b⃗.');
     await h.elements.copy.dispatch('click');
-    assert.equal(h.writes.at(-1),unicode);
-    h.elements.notation.value='portable';
-    await h.elements.notation.dispatch('change');
-    assert.equal(h.elements.output.value,'Let 𝐀=[1, 2; 3, 4] and vec(v)=(x; y). Then 𝐀vec(v)=vec(b).');
-    await h.elements.copy.dispatch('click');
-    assert.equal(h.writes.at(-1),h.elements.output.value);
+    assert.equal(h.writes.at(-1),inline);
     h.elements.notation.value='unicode';
     await h.elements.notation.dispatch('change');
-    assert.equal(h.elements.output.value,unicode);
+    assert.ok(h.elements.output.value.includes('v⃗')&&h.elements.output.value.includes('⎡'));
+    await h.elements.copy.dispatch('click');
+    assert.equal(h.writes.at(-1),h.elements.output.value);
+    h.elements.notation.value='portable';
+    await h.elements.notation.dispatch('change');
+    assert.equal(h.elements.output.value,'Let 𝐀=[1, 2; 3, 4] and vec(v)=(x, y)ᵀ. Then 𝐀vec(v)=vec(b).');
+    await h.elements.copy.dispatch('click');
+    assert.equal(h.writes.at(-1),h.elements.output.value);
+    h.elements.notation.value='compact';
+    await h.elements.notation.dispatch('change');
+    assert.equal(h.elements.output.value,inline);
   }finally{h.restore();}
 });
 

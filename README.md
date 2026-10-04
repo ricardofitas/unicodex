@@ -14,13 +14,13 @@ Paste text into the left editor. The right editor updates automatically. Click *
 
 The examples cover paragraphs, fractions, roots, matrices, vectors, mathematical alphabets, integrals, sums, products and aligned equations. Review the conversion notes when a layout or character cannot be reproduced exactly.
 
-**Output notation:** Unicode uses multiline matrices and combining vector arrows, with bundled DejaVu fonts so these symbols display on mobile and desktop. Compatible uses compact matrices such as `[1, 2; 3, 4]` and `vec(v)` when the destination lacks mathematical fonts. Copy always uses the selected notation. An arrow over several letters uses `vec(AB)` because a single Unicode combining mark cannot span the expression.
+**Output notation:** Inline is the default: matrices use commas between columns and semicolons between rows, such as `[1, 2; 3, 4]`. Column vectors use a comma-separated row followed by a transpose, such as `(x, y)ᵀ`; row vectors use `(x, y)`. Original matrix brackets are retained. Unicode offers multiline matrices, while Compatible keeps the inline layout and uses `vec(v)` when the destination lacks mathematical fonts. Inline and Unicode use combining vector arrows, with bundled DejaVu fonts for mobile and desktop. Copy always uses the selected notation. An arrow over several letters uses `vec(AB)` because a single Unicode combining mark cannot span the expression.
 
 ## Unicode limits
 
-This is a text converter, not a TeX typesetter. Unicode cannot express every LaTeX layout or font. Fractions use grouping and `/`; matrices use aligned text and line breaks; unavailable superscripts/subscripts retain explicit `^(…)` / `_(…)` notation. Unknown commands and malformed content remain visible with a warning instead of being silently erased. Mathematical meaning still needs checking for unsupported notation.
+This is a text converter, not a TeX typesetter. Unicode cannot express every LaTeX layout or font. Fractions use grouping and `/`; matrices use inline separators or aligned text and line breaks; unavailable superscripts/subscripts retain explicit `^(…)` / `_(…)` notation. Unknown commands and malformed content remain visible with a warning instead of being silently erased. Mathematical meaning still needs checking for unsupported notation.
 
-Currency dollar signs are inherently ambiguous with TeX delimiters. Escape them as `\$` or use Text mode. Custom macro expansion, package execution and arbitrary TeX are intentionally unsupported. Input is limited to 100,000 UTF-16 code units; recursion is bounded. Fonts and the destination app determine how mathematical Unicode glyphs display. Paste matrices into a monospaced plain-text field to retain column alignment.
+Currency dollar signs are inherently ambiguous with TeX delimiters. Escape them as `\$` or use Text mode. Custom macro expansion, package execution and arbitrary TeX are intentionally unsupported. Input is limited to 100,000 UTF-16 code units; recursion is bounded. Fonts and the destination app determine how mathematical Unicode glyphs display. Paste multiline matrices into a monospaced plain-text field to retain column alignment.
 
 ## Run locally
 
@@ -44,7 +44,7 @@ const { text, warnings, stats } = convertLatex('Energy: $E=mc^2$.');
 // text: 'Energy: E=mc².'
 ```
 
-Options: `mode` (`auto`, `math`, `text`), `matrixStyle` (`multiline`, `compact`), `vectorStyle` (`arrow`, `label`), `maxInputLength`, `maxDepth`. Warnings expose a code, message and optional source offset. The engine has no DOM dependency and can run in Node.js or the browser.
+Options: `mode` (`auto`, `math`, `text`), `matrixStyle` (`multiline`, `compact`), `vectorStyle` (`arrow`, `label`), `maxInputLength`, `maxDepth`. The engine API retains `multiline` as its default; pass `matrixStyle: 'compact'` for the app's default inline layout, including transposed column vectors. Warnings expose a code, message and optional source offset. The engine has no DOM dependency and can run in Node.js or the browser.
 
 ## ProjectHub integration
 

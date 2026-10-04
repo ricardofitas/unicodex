@@ -329,15 +329,19 @@ class Parser {
     if(converted.length>1&&converted.at(-1).length===1&&!converted.at(-1)[0])converted.pop();
     if(converted.length===1&&converted[0].length===1&&!converted[0][0])return '';
     if(!['matrix','pmatrix','bmatrix','Bmatrix','vmatrix','Vmatrix','smallmatrix','array','cases','dcases'].includes(name)) return converted.map(row=>row.join(' ').replace(/ +/g,' ').trim()).join('\n');
+    if(this.ctx.matrixStyle==='compact'&&!['cases','dcases'].includes(name)){
+      const brackets={pmatrix:['(',')'],bmatrix:['[',']'],Bmatrix:['{','}'],vmatrix:['|','|'],Vmatrix:['||','||']}[name]||['[',']'];
+      // A column vector is the transpose of a comma-separated row vector.
+      // Determinant and norm delimiters retain their original row layout.
+      const columnVector=converted.length>1&&converted.every(row=>row.length===1)&&!['vmatrix','Vmatrix'].includes(name);
+      const content=columnVector?converted.map(row=>row[0]).join(', '):converted.map(row=>row.join(', ')).join('; ');
+      return brackets[0]+content+brackets[1]+(columnVector?'ᵀ':'');
+    }
     if(this.inMatrix){
       this.warn('NESTED_MATRIX_LINEAR','A matrix within another matrix uses explicit rows and columns to keep each cell unambiguous.',start,true);
       const content=converted.map(row=>'['+row.join(', ')+']').join('; ');
       const brackets={pmatrix:['(',')'],bmatrix:['[',']'],Bmatrix:['{','}'],vmatrix:['|','|'],Vmatrix:['‖','‖'],cases:['cases{','}'],dcases:['cases{','}']}[name]||['[',']'];
       return brackets[0]+content+brackets[1];
-    }
-    if(this.ctx.matrixStyle==='compact'&&!['cases','dcases'].includes(name)){
-      const brackets={pmatrix:['(',')'],bmatrix:['[',']'],Bmatrix:['{','}'],vmatrix:['|','|'],Vmatrix:['||','||']}[name]||['[',']'];
-      return brackets[0]+converted.map(row=>row.join(', ')).join('; ')+brackets[1];
     }
     this.warn('MATRIX_MULTILINE','Rows and columns use a multiline plain-text layout; alignment depends on the receiving font.',start,true);
     const columns=Math.max(...converted.map(row=>row.length));

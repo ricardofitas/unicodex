@@ -1,4 +1,4 @@
-import { convertLatex } from './converter.js?v=1.1';
+import { convertLatex } from './converter.js?v=1.2';
 
 const el = (id) => document.getElementById(id);
 const source = el('source');
@@ -30,7 +30,7 @@ function convert() {
   clearTimeout(timer);
   try {
     const portable=notation.value==='portable';
-    result = convertLatex(source.value, { mode: mode.value, maxInputLength: 100000, matrixStyle: portable?'compact':'multiline', vectorStyle: portable?'label':'arrow' });
+    result = convertLatex(source.value, { mode: mode.value, maxInputLength: 100000, matrixStyle: notation.value==='unicode'?'multiline':'compact', vectorStyle: portable?'label':'arrow' });
     output.value = result.text;
     el('input-count').textContent = `${Array.from(source.value).length.toLocaleString()} characters`;
     el('output-count').textContent = `${Array.from(result.text).length.toLocaleString()} characters`;
