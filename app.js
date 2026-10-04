@@ -1,9 +1,10 @@
-import { convertLatex } from './converter.js';
+import { convertLatex } from './converter.js?v=1.1';
 
 const el = (id) => document.getElementById(id);
 const source = el('source');
 const output = el('output');
 const mode = el('mode');
+const notation = el('notation');
 const copy = el('copy');
 let timer;
 let result = { text: '', warnings: [], stats: {} };
@@ -28,7 +29,8 @@ function status(message, error = false) {
 function convert() {
   clearTimeout(timer);
   try {
-    result = convertLatex(source.value, { mode: mode.value, maxInputLength: 100000 });
+    const portable=notation.value==='portable';
+    result = convertLatex(source.value, { mode: mode.value, maxInputLength: 100000, matrixStyle: portable?'compact':'multiline', vectorStyle: portable?'label':'arrow' });
     output.value = result.text;
     el('input-count').textContent = `${Array.from(source.value).length.toLocaleString()} characters`;
     el('output-count').textContent = `${Array.from(result.text).length.toLocaleString()} characters`;
@@ -60,6 +62,7 @@ source.addEventListener('input', () => {
   timer = setTimeout(convert, 140);
 });
 mode.addEventListener('change', convert);
+notation.addEventListener('change', convert);
 el('convert').addEventListener('click', convert);
 el('example').addEventListener('change', (event) => {
   if (!samples[event.target.value]) return;

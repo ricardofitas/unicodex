@@ -39,7 +39,7 @@ const UNSAFE = new Set(['input','include','includegraphics','write','write18','o
 const NEGATIONS = Object.freeze({'=':'≠','∈':'∉','∋':'∌','<':'≮','>':'≯','≤':'≰','≥':'≱','≡':'≢','∼':'≁','≈':'≉','⊂':'⊄','⊃':'⊅','⊆':'⊈','⊇':'⊉','→':'↛','←':'↚','↔':'↮','⇒':'⇏','⇐':'⇍','⇔':'⇎','∣':'∤','∥':'∦'});
 
 const isEscaped = (s, i) => { let n = 0; while (i > 0 && s[--i] === '\\') n++; return n % 2 === 1; };
-const cleanMath = (s) => (s.includes('\n')?s:s.replace(/[\t ]+/g, ' ')).replace(/ *\n */g, '\n').trim();
+const cleanMath = (s) => (s.includes('\n')?s.split('\n').map(line=>line.trimEnd()).join('\n'):s.replace(/[\t ]+/g, ' ')).trim();
 function groupIfNeeded(s) {
   // An outer pair must enclose the entire operand, not merely its first/last term.
   let depth=0, enclosed=s.startsWith('(')&&s.endsWith(')');
@@ -48,6 +48,9 @@ function groupIfNeeded(s) {
   return atom||enclosed?s:`(${s})`;
 }
 const codepointWidth = (s) => Array.from(s).filter(c => !/\p{M}/u.test(c)).length;
+const alignContinuation = (text, column) => text.replace(/\n/g, '\n'+' '.repeat(column));
+const VECTOR_ACCENTS = new Set(['vec','overrightarrow','overleftarrow','overleftrightarrow']);
+const SCRIPT_GLYPHS = new Set([...Object.values(SUPER),...Object.values(SUB)]);
 
 function styled(text, style, ctx, offset) {
   const config = {
@@ -138,20 +141,26 @@ class Parser {
     return this.s.slice(start,this.i);
   }
   parse() {
-    const parts=[];
+    const parts=[];let column=0;
+    const append=(value)=>{
+      if(value.includes('\n')&&value!=='\n')value=alignContinuation(value,column);
+      parts.push(value);
+      const last=value.lastIndexOf('\n');
+      column=last<0?column+codepointWidth(value):codepointWidth(value.slice(last+1));
+    };
     while (this.i < this.s.length) {
       const start=this.i, c=this.s[this.i];
       if ((c==='^'||c==='_') && this.math) {
         this.i++;
         const arg=this.argument(true);
-        if (!arg || !arg.valid) {parts.push(this.s.slice(start,this.i));continue;}
+        if (!arg || !arg.valid) {append(this.s.slice(start,this.i));continue;}
         if (!parts.length || !parts.some(x=>x.trim())) this.warn('MISSING_SCRIPT_BASE','A script has no preceding base.',start);
-        while(parts.length && /^\s+$/.test(parts[parts.length-1])) parts.pop();
-        parts.push(script(arg.text,c,this.ctx,this.offset+start));
+        while(parts.length && /^[\t ]+$/.test(parts[parts.length-1])) column-=codepointWidth(parts.pop());
+        append(script(arg.text,c,this.ctx,this.offset+start));
         continue;
       }
-      parts.push(this.atom(this.math));
-      if (this.i <= start) { parts.push(this.s[this.i++]); this.warn('RECOVERY','An unrecognized input character was retained.',start); }
+      append(this.atom(this.math));
+      if (this.i <= start) { append(this.s[this.i++]); this.warn('RECOVERY','An unrecognized input character was retained.',start); }
     }
     return parts.join('');
   }
@@ -272,6 +281,16 @@ class Parser {
   }
   accent(value, mark, start, name='accent') {
     const t=cleanMath(value);
+    if(VECTOR_ACCENTS.has(name)){
+      const label=name==='vec'||name==='overrightarrow'?'vec':name;
+      if(this.ctx.vectorStyle==='label')return `${label}(${t})`;
+      const chars=Array.from(t);let baseEnd=1;
+      while(baseEnd<chars.length&&/\p{M}/u.test(chars[baseEnd]))baseEnd++;
+      if(chars.length&&chars.slice(baseEnd).every(c=>SCRIPT_GLYPHS.has(c)))
+        return (chars.slice(0,baseEnd).join('')+mark).normalize('NFC')+chars.slice(baseEnd).join('');
+      this.warn('ACCENT_LINEAR','An arrow spanning several characters uses explicit vector notation because Unicode cannot span a whole expression.',start,true);
+      return `${label}(${t})`;
+    }
     if(['overline','underline'].includes(name)) return Array.from(t,c=>/\s/.test(c)?c:c+mark).join('');
     if(Array.from(t).filter(c=>!/\p{M}/u.test(c)).length===1)return (t+mark).normalize('NFC');
     this.warn('ACCENT_LINEAR','An accent over several characters was attached to an explicitly grouped expression.',start,true);
@@ -305,8 +324,10 @@ class Parser {
       let value=cleanMath(new Parser(cell.text,this.ctx,bodyOffset+cell.offset,this.depth+1,true,false,true).parse());
       if(value.includes('\n')){this.warn('MULTILINE_CELL_LINEAR','A multiline expression inside a matrix cell uses explicit line separators.',start,true);value=value.replace(/\n/g,' ↵ ');}
       return value;
-    })).filter(row=>row.some(Boolean));
-    if(!converted.length)return '';
+    }));
+    // Ignore a final row terminator, but retain explicitly empty matrix cells.
+    if(converted.length>1&&converted.at(-1).length===1&&!converted.at(-1)[0])converted.pop();
+    if(converted.length===1&&converted[0].length===1&&!converted[0][0])return '';
     if(!['matrix','pmatrix','bmatrix','Bmatrix','vmatrix','Vmatrix','smallmatrix','array','cases','dcases'].includes(name)) return converted.map(row=>row.join(' ').replace(/ +/g,' ').trim()).join('\n');
     if(this.inMatrix){
       this.warn('NESTED_MATRIX_LINEAR','A matrix within another matrix uses explicit rows and columns to keep each cell unambiguous.',start,true);
@@ -314,12 +335,19 @@ class Parser {
       const brackets={pmatrix:['(',')'],bmatrix:['[',']'],Bmatrix:['{','}'],vmatrix:['|','|'],Vmatrix:['‖','‖'],cases:['cases{','}'],dcases:['cases{','}']}[name]||['[',']'];
       return brackets[0]+content+brackets[1];
     }
+    if(this.ctx.matrixStyle==='compact'&&!['cases','dcases'].includes(name)){
+      const brackets={pmatrix:['(',')'],bmatrix:['[',']'],Bmatrix:['{','}'],vmatrix:['|','|'],Vmatrix:['||','||']}[name]||['[',']'];
+      return brackets[0]+converted.map(row=>row.join(', ')).join('; ')+brackets[1];
+    }
     this.warn('MATRIX_MULTILINE','Rows and columns use a multiline plain-text layout; alignment depends on the receiving font.',start,true);
+    const columns=Math.max(...converted.map(row=>row.length));
+    if(converted.some(row=>row.length!==columns))this.warn('MATRIX_COLUMN_COUNT','Matrix rows have different column counts; missing cells were kept empty.',start);
+    for(const row of converted)while(row.length<columns)row.push('');
     const widths=[];for(const row of converted)row.forEach((cell,j)=>{widths[j]=Math.max(widths[j]||0,codepointWidth(cell));});
-    const lines=converted.map(row=>row.map((cell,j)=>cell+' '.repeat(Math.max(0,(widths[j]||0)-codepointWidth(cell)))).join('  ').trimEnd());
-    if(name==='cases'||name==='dcases') return lines.map((line,j)=>`${lines.length===1?'{':j===0?'⎧':j===lines.length-1?'⎩':'⎪'} ${line}`).join('\n');
+    const lines=converted.map(row=>row.map((cell,j)=>cell+' '.repeat(Math.max(0,(widths[j]||0)-codepointWidth(cell)))).join('  '));
+    if(name==='cases'||name==='dcases') return lines.map((line,j)=>`${lines.length===1?'{':j===0?'⎧':j===lines.length-1?'⎩':'⎪'} ${line.trimEnd()}`).join('\n');
     const braces={pmatrix:['⎛','⎜','⎝','⎞','⎟','⎠','(',')'],bmatrix:['⎡','⎢','⎣','⎤','⎥','⎦','[',']'],Bmatrix:['⎧','⎪','⎩','⎫','⎪','⎭','{','}'],vmatrix:['│','│','│','│','│','│','|','|'],Vmatrix:['║','║','║','║','║','║','‖','‖']}[name];
-    if(!braces)return lines.join('\n');
+    if(!braces)return lines.map(line=>line.trimEnd()).join('\n');
     if(lines.length===1)return `${braces[6]} ${lines[0]} ${braces[7]}`;
     return lines.map((line,j)=>`${braces[j===0?0:j===lines.length-1?2:1]} ${line} ${braces[j===0?3:j===lines.length-1?5:4]}`).join('\n');
   }
@@ -417,7 +445,8 @@ function mixed(input, ctx, offset=0, mathOutside=false) {
     if(end<0){warning(ctx,'UNMATCHED_DELIMITER',`The opening ${opening} has no matching ${closing}; the remaining input was retained.`,offset+i);chunks.push(input.slice(i));return chunks.join('');}
     ctx.stats.mathSegments++;
     const converted=cleanMath(new Parser(input.slice(i+opening.length,end),ctx,offset+i+opening.length,0,true).parse());
-    chunks.push(converted);
+    const prefix=chunks.join('').split('\n').at(-1);
+    chunks.push(alignContinuation(converted,codepointWidth(prefix)));
     i=end+closing.length;outside=i;
   }
   chunks.push(new Parser(input.slice(outside),ctx,offset+outside,0,mathOutside,!mathOutside).parse());
@@ -431,7 +460,7 @@ export function convertLatex(input, options={}) {
   const requestedLength=Number(options.maxInputLength), requestedDepth=Number(options.maxDepth);
   const maxInputLength=Number.isFinite(requestedLength)?Math.min(200000,Math.max(1,Math.floor(requestedLength))):50000;
   const maxDepth=Number.isFinite(requestedDepth)?Math.min(128,Math.max(1,Math.floor(requestedDepth))):48;
-  const ctx={maxDepth,warnings:[],additionalWarnings:0,stats:{inputCharacters:Array.from(input).length,outputCharacters:0,mathSegments:0,unsupportedCommands:0,lossyConversions:0}};
+  const ctx={maxDepth,matrixStyle:options.matrixStyle==='compact'?'compact':'multiline',vectorStyle:options.vectorStyle==='label'?'label':'arrow',warnings:[],additionalWarnings:0,stats:{inputCharacters:Array.from(input).length,outputCharacters:0,mathSegments:0,unsupportedCommands:0,lossyConversions:0}};
   if(input.length>maxInputLength){warning(ctx,'INPUT_TOO_LONG',`The input exceeds the ${maxInputLength}-character conversion limit. It was returned unchanged.`,0);ctx.stats.outputCharacters=ctx.stats.inputCharacters;return {text:input,warnings:ctx.warnings,stats:ctx.stats};}
   let text;
   if(mode==='math'){text=cleanMath(mixed(input,ctx,0,true));if(!ctx.stats.mathSegments&&input.trim())ctx.stats.mathSegments=1;}

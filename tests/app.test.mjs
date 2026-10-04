@@ -17,9 +17,10 @@ class Element {
 
 let sequence = 0;
 async function harness({ clipboard = 'success', fallback = true } = {}) {
-  const ids = ['source','output','mode','copy','input-count','output-count','status','warnings','warnings-panel','convert','example','clear'];
+  const ids = ['source','output','mode','notation','copy','input-count','output-count','status','warnings','warnings-panel','convert','example','clear'];
   const elements = Object.fromEntries(ids.map(id => [id, new Element(id)]));
   elements.mode.value = 'auto';
+  elements.notation.value = 'unicode';
   const writes = [];
   let pending;
   const saved = Object.fromEntries(['document','navigator','setTimeout','clearTimeout'].map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
@@ -113,6 +114,26 @@ test('all six examples produce nonempty output and copy it exactly', async () =>
       assert.equal(h.writes.at(-1), h.elements.output.value, example);
     }
   } finally { h.restore(); }
+});
+
+test('switching output notation updates and copies the matrices and vectors example', async () => {
+  const h=await harness();
+  try{
+    h.elements.example.value='matrix';
+    await h.elements.example.dispatch('change');
+    const unicode=h.elements.output.value;
+    assert.ok(unicode.includes('v⃗')&&unicode.includes('⎡'));
+    await h.elements.copy.dispatch('click');
+    assert.equal(h.writes.at(-1),unicode);
+    h.elements.notation.value='portable';
+    await h.elements.notation.dispatch('change');
+    assert.equal(h.elements.output.value,'Let 𝐀=[1, 2; 3, 4] and vec(v)=(x; y). Then 𝐀vec(v)=vec(b).');
+    await h.elements.copy.dispatch('click');
+    assert.equal(h.writes.at(-1),h.elements.output.value);
+    h.elements.notation.value='unicode';
+    await h.elements.notation.dispatch('change');
+    assert.equal(h.elements.output.value,unicode);
+  }finally{h.restore();}
 });
 
 test('conversion notes are plain text and unsupported markup is not executed', async () => {

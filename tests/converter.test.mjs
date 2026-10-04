@@ -125,7 +125,7 @@ test('text groups, accents and escaped punctuation preserve their meaning',()=>{
   assert.equal(convert(String.raw`$x\text{ if }x>0$`),'x if x>0');
   assert.equal(convert(String.raw`\textbf{Bold} and \emph{emphasis}`),'𝐁𝐨𝐥𝐝 and 𝑒𝑚𝑝ℎ𝑎𝑠𝑖𝑠');
   assert.equal(convert(String.raw`$\hat{x}+\vec{v}+\dot{a}+\overline{AB}$`),'x̂+v⃗+ȧ+A̅B̅');
-  assert.equal(convert(String.raw`$\vec{AB}$`),'(AB)⃗');
+  assert.equal(convert(String.raw`$\vec{AB}$`),'vec(AB)');
   assert.ok(hasWarning(String.raw`$\vec{AB}$`,'ACCENT_LINEAR'));
   assert.equal(convert(String.raw`\'a, \~o, \"u, \$20, \% and \&`),'á, õ, ü, $20, % and &');
 });
@@ -139,7 +139,7 @@ test('matrix rows, columns and outer brackets remain explicit',()=>{
 
 test('padded matrix columns survive display delimiters',()=>{
   const s=String.raw`\begin{bmatrix}1&1000\\100&2\end{bmatrix}`;
-  assert.equal(convert(s),'⎡ 1    1000 ⎤\n⎣ 100  2 ⎦');
+  assert.equal(convert(s),'⎡ 1    1000 ⎤\n⎣ 100  2    ⎦');
   assert.equal(convert('\\['+s+'\\]'),convert(s));
 });
 
@@ -164,6 +164,60 @@ test('cases and aligned equations retain every branch and row',()=>{
 
 test('row spacing directives do not become a new matrix cell',()=>{
   assert.equal(convert(String.raw`\begin{bmatrix}a&b\\[2pt]c&d\end{bmatrix}`),'⎡ a  b ⎤\n⎣ c  d ⎦');
+});
+
+test('multiline matrices align beneath their prefix inside formulas and prose',()=>{
+  const matrix=String.raw`\begin{bmatrix}1&2\\3&4\end{bmatrix}`;
+  assert.equal(convert('$\\mathbf{A}='+matrix+'$'),'𝐀=⎡ 1  2 ⎤\n  ⎣ 3  4 ⎦');
+  assert.equal(convert('Let $\\mathbf{A}='+matrix+'$.'),'Let 𝐀=⎡ 1  2 ⎤\n      ⎣ 3  4 ⎦.');
+  assert.equal(convert('A='+matrix,{mode:'math'}),'A=⎡ 1  2 ⎤\n  ⎣ 3  4 ⎦');
+});
+
+test('column vectors and row vectors retain their orientation',()=>{
+  assert.equal(convert(String.raw`\vec{v}=\begin{pmatrix}x\\y\\z\end{pmatrix}`),'v⃗=⎛ x ⎞\n  ⎜ y ⎟\n  ⎝ z ⎠');
+  assert.equal(convert(String.raw`\begin{bmatrix}x&y&z\end{bmatrix}`),'[ x  y  z ]');
+  assert.equal(convert(String.raw`\begin{bmatrix}x\end{bmatrix}`),'[ x ]');
+});
+
+test('3 by 3 matrices convert fractions, scripts and mathematical alphabets in cells',()=>{
+  const matrix=String.raw`\begin{bmatrix}\alpha&\frac{1}{2}&x_i\\\mathbf{A}&\mathbb{R}&\sqrt{4}\\\vec{v}&2&3\end{bmatrix}`;
+  const result=convertLatex(matrix);
+  assert.equal(result.text,'⎡ α  ½  xᵢ ⎤\n⎢ 𝐀  ℝ  √4 ⎥\n⎣ v⃗  2  3  ⎦');
+  assert.equal(result.stats.unsupportedCommands,0);
+});
+
+test('empty cells and ragged rows remain explicit without dropping rows',()=>{
+  assert.equal(convert(String.raw`\begin{bmatrix}&\\1&2\\&\end{bmatrix}`),'⎡      ⎤\n⎢ 1  2 ⎥\n⎣      ⎦');
+  const ragged=String.raw`\begin{bmatrix}1&2\\3\end{bmatrix}`;
+  assert.equal(convert(ragged),'⎡ 1  2 ⎤\n⎣ 3    ⎦');
+  assert.ok(hasWarning(ragged,'MATRIX_COLUMN_COUNT'));
+  assert.equal(convert(String.raw`\begin{bmatrix}1&2\\3&4\\\end{bmatrix}`),'⎡ 1  2 ⎤\n⎣ 3  4 ⎦');
+});
+
+test('all matrix delimiters have a font-independent compact alternative',()=>{
+  const expected={matrix:'[a, b; c, d]',smallmatrix:'[a, b; c, d]',array:'[a, b; c, d]',bmatrix:'[a, b; c, d]',pmatrix:'(a, b; c, d)',Bmatrix:'{a, b; c, d}',vmatrix:'|a, b; c, d|',Vmatrix:'||a, b; c, d||'};
+  for(const [name,text] of Object.entries(expected)){
+    const input=`\\begin{${name}}${name==='array'?'{cc}':''}a&b\\\\c&d\\end{${name}}`;
+    assert.equal(convert(input,{matrixStyle:'compact'}),text,name);
+  }
+});
+
+test('vector arrows attach to the base before indices and support styled or Greek bases',()=>{
+  assert.equal(convert(String.raw`$\vec{v_i}+\vec{v}_i+\vec{\mathbf{v}}+\vec{\alpha}$`),'v⃗ᵢ+v⃗ᵢ+𝐯⃗+α⃗');
+  assert.equal(convert(String.raw`$\overleftarrow{v}+\overleftrightarrow{v}$`),'v⃖+v⃡');
+});
+
+test('vector groups and portable arrows use explicit notation without changing direction',()=>{
+  assert.equal(convert(String.raw`$\vec{AB}+\overrightarrow{AB}+\overleftarrow{AB}$`),'vec(AB)+vec(AB)+overleftarrow(AB)');
+  assert.equal(convert(String.raw`$\vec{v_i}+\vec{AB}$`,{vectorStyle:'label'}),'vec(vᵢ)+vec(AB)');
+});
+
+test('the reported matrices and vectors example retains prose and remains stable',()=>{
+  const input=String.raw`Let $\mathbf{A}=\begin{bmatrix}1 & 2 \\ 3 & 4\end{bmatrix}$ and $\vec{v}=\begin{pmatrix}x \\ y\end{pmatrix}$. Then $\mathbf{A}\vec{v}=\vec{b}$.`;
+  const text=convert(input);
+  assert.equal(text,'Let 𝐀=⎡ 1  2 ⎤\n      ⎣ 3  4 ⎦ and v⃗=⎛ x ⎞\n                     ⎝ y ⎠. Then 𝐀v⃗=b⃗.');
+  assert.equal(convert(text),text);
+  assert.equal(convert(input,{matrixStyle:'compact',vectorStyle:'label'}),'Let 𝐀=[1, 2; 3, 4] and vec(v)=(x; y). Then 𝐀vec(v)=vec(b).');
 });
 
 test('binomial coefficients, modulo and annotations have honest linear fallbacks',()=>{

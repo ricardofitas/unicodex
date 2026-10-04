@@ -14,6 +14,8 @@ Paste text into the left editor. The right editor updates automatically. Click *
 
 The examples cover paragraphs, fractions, roots, matrices, vectors, mathematical alphabets, integrals, sums, products and aligned equations. Review the conversion notes when a layout or character cannot be reproduced exactly.
 
+**Output notation:** Unicode uses multiline matrices and combining vector arrows, with bundled DejaVu fonts so these symbols display on mobile and desktop. Compatible uses compact matrices such as `[1, 2; 3, 4]` and `vec(v)` when the destination lacks mathematical fonts. Copy always uses the selected notation. An arrow over several letters uses `vec(AB)` because a single Unicode combining mark cannot span the expression.
+
 ## Unicode limits
 
 This is a text converter, not a TeX typesetter. Unicode cannot express every LaTeX layout or font. Fractions use grouping and `/`; matrices use aligned text and line breaks; unavailable superscripts/subscripts retain explicit `^(…)` / `_(…)` notation. Unknown commands and malformed content remain visible with a warning instead of being silently erased. Mathematical meaning still needs checking for unsupported notation.
@@ -42,10 +44,10 @@ const { text, warnings, stats } = convertLatex('Energy: $E=mc^2$.');
 // text: 'Energy: E=mc².'
 ```
 
-Options: `mode` (`auto`, `math`, `text`), `maxInputLength`, `maxDepth`. Warnings expose a code, message and optional source offset. The engine has no DOM dependency and can run in Node.js or the browser.
+Options: `mode` (`auto`, `math`, `text`), `matrixStyle` (`multiline`, `compact`), `vectorStyle` (`arrow`, `label`), `maxInputLength`, `maxDepth`. Warnings expose a code, message and optional source offset. The engine has no DOM dependency and can run in Node.js or the browser.
 
 ## ProjectHub integration
 
 The ProjectHub card links to `/unicodex`. It serves this same standalone interface using local copies of the assets under `/unicodex-app/`, without a third-party embed. The public repository is the source for the app; the vendored ProjectHub snapshot records its source commit and hashes in `public/unicodex-app/SOURCE.json`.
 
-MIT licensed. See [LICENSE](LICENSE).
+Code is MIT licensed. See [LICENSE](LICENSE). Bundled DejaVu fonts have their own license in [fonts/LICENSE-DejaVu.txt](fonts/LICENSE-DejaVu.txt).
